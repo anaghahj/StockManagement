@@ -1,0 +1,85 @@
+.dashboard-container {
+  max-width: 100vw;   /* Limit width to viewport */
+  max-height: 100vh;  /* Limit height to viewport */
+  overflow: hidden;     /* Scroll inside if content overflows */
+  display: flex;
+  gap: 20px;          /* Optional: spacing between child divs */
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.stock-list {
+  width: 300px;
+  overflow-y: auto;
+  border-right: 1px solid #ccc;
+  padding-right: 1rem;
+}
+
+.stock-card {
+  background: #f9f9f9;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  cursor: pointer;
+  transition: box-shadow 0.3s;
+  border: 2px solid transparent;
+}
+
+.stock-card.active {
+  border-color: #007bff;
+  background-color: #eef6ff;
+}
+
+.stock-card:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.stock-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: bold;
+}
+
+.stock-meta {
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.positive {
+  color: green;
+}
+.negative {
+  color: red;
+}
+
+.chart-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-title {
+  margin-bottom: 1rem;
+}
+
+.filter-buttons {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.filter-buttons button {
+  padding: 0.5rem 1rem;
+  border: 1px solid #007bff;
+  background-color: #fff;
+  color: #007bff;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.filter-buttons button:hover {
+  background-color: #007bff;
+  color: white;
+}

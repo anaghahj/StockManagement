@@ -1,0 +1,43 @@
+<div class="dashboard-container">
+    <div class="stock-list">
+        <h2>📈 Stocks</h2>
+        <div class="stock-card" *ngFor="let stock of stocks" (click)="fetchHistoryForChart(stock)"
+            [class.active]="stock.symbol === selectedStock?.symbol">
+            <div class="stock-header">
+                <h3>{{ stock.symbol }}</h3>
+                <span [ngClass]="{
+          positive: stock.change > 0,
+          negative: stock.change < 0
+        }">
+                    {{ stock.change > 0 ? '+' : '' }}{{ stock.change | number:'1.2-2' }}
+                </span>
+            </div>
+            <div class="stock-meta">
+                <div><strong>Name:</strong> {{ stock.name }}</div>
+                <div><strong>Current:</strong> {{ stock.currentPrice | currency }}</div>
+                <div><strong>Base:</strong> {{ stock.basePrice | currency }}</div>
+                <div>
+                    <strong>Change %:</strong>
+                    <span [ngClass]="{
+            positive: stock.changePercent > 0,
+            negative: stock.changePercent < 0
+          }">
+                        {{ stock.changePercent | number:'1.2-2' }}%
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="chart-section" *ngIf="selectedStock && chartData.labels?.length">
+        <h3 class="chart-title">{{ selectedStock.symbol }} - Closing Price History</h3>
+
+        <div class="filter-buttons">
+            <button (click)="setChartRange(7)">7 Days</button>
+            <button (click)="setChartRange(30)">30 Days</button>
+            <button (click)="setChartRange(90)">90 Days</button>
+        </div>
+
+        <canvas baseChart [data]="chartData" [options]="chartOptions" type="line"></canvas>
+    </div>
+</div>

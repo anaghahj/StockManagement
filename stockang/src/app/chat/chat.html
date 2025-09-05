@@ -1,0 +1,39 @@
+<div class="chat-container" [class.open]="isOpen">
+    <div class="chat-header" (click)="toggleChat()">💬 Chat with StockBot</div>
+
+    <div class="chat-box" *ngIf="isOpen">
+        <div class="messages">
+            <div *ngFor="let message of messages">
+                <div [ngClass]="message.from" class="message-bubble">
+                    <div *ngIf="isGroupedStock(message.content); else textMsg">
+                        <div *ngFor="let category of objectKeys(message.content)">
+                            <h4>{{ getIcon(category) }} {{ category }}</h4>
+                            <div *ngFor="let stock of message.content[category]" class="clickable-stock"
+                                (click)="selectStock(stock)">
+                                <strong>{{ stock.symbol }}</strong>: {{ stock.name }}<br />
+                                Price: ${{ stock.latestPrice | number:'1.2-2' }}<br />
+                                Recommendation: {{ stock.recommendation }}
+                                <hr />
+                            </div>
+
+                        </div>
+
+                    </div>
+                    <ng-template #textMsg>
+                        <p>{{ message.content }}</p>
+                    </ng-template>
+                </div>
+            </div>
+
+            <div class="bot typing" *ngIf="isLoading">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+            </div>
+        </div>
+
+        <div class="chat-input">
+            <input type="text" [(ngModel)]="userMessage" (keyup.enter)="sendMessage()"
+                placeholder="Type your message..." />
+            <button (click)="sendMessage()">Send</button>
+        </div>
+    </div>
+</div>
