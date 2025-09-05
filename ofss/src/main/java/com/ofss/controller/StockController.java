@@ -6,6 +6,7 @@ import java.util.Date;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,6 +22,7 @@ import com.ofss.model.Stock;
 import com.ofss.services.StockRecomendation;
 import com.ofss.services.StockService;
 
+@CrossOrigin(origins = "http://localhost:4200")
 @RestController
 @RequestMapping("/api")
 public class StockController {
@@ -35,6 +37,7 @@ public class StockController {
         return stockService.viewAllStocks();
     }
 
+    // only admin can do
     @PostMapping("/stocks")
     public ResponseEntity<Object> addStock(@RequestBody Stock stock) {
         return stockService.addStock(stock);
@@ -45,6 +48,7 @@ public class StockController {
         return stockService.findBySymbol(symbol);
     }
 
+    // only admin can do
     @PutMapping("/stock/{symbol}")
     public ResponseEntity<Object> updateStock(@PathVariable String symbol, @RequestBody Stock stock) {
         return stockService.updateStock(symbol, stock);
@@ -57,7 +61,7 @@ public class StockController {
 
     // @GetMapping("/stocks/search")
     // public ResponseEntity<Object> searchBySector(@RequestParam String sector) {
-    //     return stockService.searchBySector(sector);
+    // return stockService.searchBySector(sector);
     // }
     @GetMapping("/stock/{symbol}/latest-price")
     public ResponseEntity<Object> getLatestPrice(@PathVariable String symbol) {
@@ -80,9 +84,10 @@ public class StockController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {
 
-        // You have LocalDate objects (start, end), 
+        // You have LocalDate objects (start, end),
         // but your service expects java.util.Date, so convert them:
-        Date startdate = java.sql.Date.valueOf(start);  // Convert LocalDate to java.sql.Date (which extends java.util.Date)
+        Date startdate = java.sql.Date.valueOf(start); // Convert LocalDate to java.sql.Date (which extends
+        // java.util.Date)
         Date enddate = java.sql.Date.valueOf(end);
 
         System.out.println("Start date: " + startdate);

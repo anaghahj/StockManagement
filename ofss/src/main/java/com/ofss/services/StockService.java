@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import com.ofss.model.Stock;
+import com.ofss.model.StockDTO;
 import com.ofss.model.StockHistory;
 import com.ofss.repositories.StockHistoryRepository;
 import com.ofss.repositories.StockRepository;
@@ -26,9 +27,11 @@ public class StockService {
 
     @Autowired
     private StockHistoryRepository shr;
+
     @Autowired
     private StockRecomendation stockrec;
 
+    // 1. View all stocks with color tags
     public ResponseEntity<Object> viewAllStocks() {
         List<Stock> stocks = sr.findAll();
 
@@ -46,18 +49,70 @@ public class StockService {
         return ResponseEntity.ok(stocks);
     }
 
+    // 2. Add a stock
     public ResponseEntity<Object> addStock(Stock stock) {
         return ResponseEntity.status(201).body(sr.save(stock));
     }
 
-    public ResponseEntity<Object> findBySymbol(String Symbol) {
-        Stock stock = sr.findBySymbol(Symbol);
-        if (stock == null) {
-            return ResponseEntity.notFound().build();
-        }
-        return ResponseEntity.ok(stock);
+    // 3. Find stock by symbol
+    public ResponseEntity<Object> findBySymbol(String symbol) {
+        Stock stock = sr.findBySymbol(symbol);
+        return stock != null ? ResponseEntity.ok(stock) : ResponseEntity.notFound().build();
     }
 
+    public Stock getbysymbol(String symbol) {
+        return sr.findBySymbol(symbol);
+    }
+
+    // 4. Get stocks sorted by latest price
+    public List<StockDTO> getAllStocksSortedByLatestPrice(String order) {
+        List<Stock> stocks = sr.findAll();
+        List<StockDTO> enrichedStocks = new ArrayList<>();
+
+        for (Stock stock : stocks) {
+            List<StockHistory> history = shr.findTop2ByStockOrderByTradeDateDesc(stock);
+            if (history.isEmpty()) {
+                continue;
+            }
+
+            StockHistory latest = history.get(0);
+            StockHistory previous = history.size() > 1 ? history.get(1) : null;
+
+            double latestPrice = latest.getClosePrice();
+            String color = "grey";
+            if (previous != null) {
+                color = latestPrice > previous.getClosePrice() ? "green" : "red";
+            }
+
+            StockDTO dto = new StockDTO(
+                    stock.getSymbol(),
+                    stock.getName(),
+                    stock.getIndustry(),
+                    latestPrice,
+                    color
+            );
+
+            enrichedStocks.add(dto);
+        }
+
+        enrichedStocks.sort((a, b) -> {
+            double priceA = a.getLatestPrice() != null ? a.getLatestPrice() : 0;
+            double priceB = b.getLatestPrice() != null ? b.getLatestPrice() : 0;
+            return "desc".equalsIgnoreCase(order)
+                    ? Double.compare(priceB, priceA)
+                    : Double.compare(priceA, priceB);
+        });
+
+        return enrichedStocks;
+    }
+
+    // 5. Find stocks by industry
+    public ResponseEntity<Object> findByIndustry(String industry) {
+        List<Stock> stocks = sr.findAllByIndustry(industry);
+        return (stocks == null || stocks.isEmpty()) ? ResponseEntity.notFound().build() : ResponseEntity.ok(stocks);
+    }
+
+    // 6. Update stock
     public ResponseEntity<Object> updateStock(String symbol, Stock updatedStock) {
         Stock stock = sr.findBySymbol(symbol);
         if (stock == null) {
@@ -71,6 +126,7 @@ public class StockService {
         return ResponseEntity.ok(sr.save(stock));
     }
 
+    // 7. Delete stock by symbol
     public ResponseEntity<Object> deleteBySymbol(String symbol) {
         Stock stock = sr.findBySymbol(symbol);
         if (stock == null) {
@@ -81,9 +137,7 @@ public class StockService {
         return ResponseEntity.ok("Stock deleted successfully.");
     }
 
-    // public ResponseEntity<Object> searchBySector(String sector) {
-    //     return ResponseEntity.ok(sr.findBySectorIgnoreCase(sector));
-    // }
+    // 8. Get latest price
     public ResponseEntity<Object> getLatestPrice(String symbol) {
         Stock stock = sr.findBySymbol(symbol);
         if (stock == null) {
@@ -94,6 +148,7 @@ public class StockService {
         return ResponseEntity.ok(latest != null ? latest.getClosePrice() : "No history available.");
     }
 
+    // 9. Get stock history
     public ResponseEntity<Object> getStockHistory(String symbol) {
         Stock stock = sr.findBySymbol(symbol);
         if (stock == null) {
@@ -104,10 +159,7 @@ public class StockService {
         return ResponseEntity.ok(history);
     }
 
-    private double round(double value) {
-        return Math.round(value * 100.0) / 100.0;
-    }
-
+    // 10. Average close price between dates
     public ResponseEntity<Object> getAverageClosePrice(String symbol, Date start, Date end) {
         Stock stock = sr.findBySymbol(symbol);
         if (stock == null) {
@@ -127,6 +179,7 @@ public class StockService {
         return ResponseEntity.ok(average);
     }
 
+    // 11. Delete all history
     public ResponseEntity<Object> deleteAllHistoryForStock(String symbol) {
         Stock stock = sr.findBySymbol(symbol);
         if (stock == null) {
@@ -137,6 +190,7 @@ public class StockService {
         return ResponseEntity.ok("All history deleted for stock: " + symbol);
     }
 
+    // 12. Top 5 movers by % change
     public ResponseEntity<Object> getTopMovers() {
         List<Stock> stocks = sr.findAll();
         List<Map<String, Object>> movers = new ArrayList<>();
@@ -147,11 +201,9 @@ public class StockService {
                 continue;
             }
 
-            StockHistory latest = historyList.get(0);
-            StockHistory previous = historyList.get(1);
-
-            double changePercent = ((latest.getClosePrice() - previous.getClosePrice()) / previous.getClosePrice())
-                    * 100;
+            double latest = historyList.get(0).getClosePrice();
+            double previous = historyList.get(1).getClosePrice();
+            double changePercent = ((latest - previous) / previous) * 100;
 
             Map<String, Object> map = new HashMap<>();
             map.put("symbol", stock.getSymbol());
@@ -160,66 +212,63 @@ public class StockService {
         }
 
         movers.sort((a, b) -> Double.compare((Double) b.get("changePercent"), (Double) a.get("changePercent")));
-
-        return ResponseEntity.ok(movers.subList(0, 5));
-
+        return ResponseEntity.ok(movers.subList(0, Math.min(5, movers.size())));
     }
 
+    // 13. Chat-style smart recommendation
     public ResponseEntity<Object> chatrec(String message, Double budget, String risk) {
-        if (message == null) {
-            return ResponseEntity.badRequest().body("Message cannot be null");
+        if (message == null || message.isBlank()) {
+            return ResponseEntity.badRequest().body("Message cannot be null or empty");
         }
 
         message = message.toLowerCase();
 
         if (message.contains("recommend") || message.contains("buy")) {
-            List<Map<String, Object>> recommendations = (List<Map<String, Object>>) stockrec.getSmartRecommendations(risk).getBody();
+            List<Map<String, Object>> recommendations
+                    = (List<Map<String, Object>>) stockrec.getSmartRecommendations(risk).getBody();
 
             if (budget == null) {
-                // No budget constraints, return all recommendations
                 return ResponseEntity.ok(recommendations);
             }
 
-            double remainingBudget = budget;
-            List<Map<String, Object>> affordableRecommendations = recommendations.stream()
+            double remaining = budget;
+
+            List<Map<String, Object>> affordable = recommendations.stream()
                     .filter(r -> {
                         Object priceObj = r.get("latestPrice");
                         return priceObj instanceof Number && ((Number) priceObj).doubleValue() <= budget;
+                    }).collect(Collectors.toList());
 
-                    })
-                    .collect(Collectors.toList());
-            List<Map<String, Object>> strongBuys = affordableRecommendations.stream()
+            List<Map<String, Object>> strongBuys = affordable.stream()
                     .filter(r -> "Strong Buy".equalsIgnoreCase((String) r.get("recommendation")))
                     .sorted(Comparator.comparingDouble(r -> ((Number) r.get("latestPrice")).doubleValue()))
                     .collect(Collectors.toList());
 
-            List<Map<String, Object>> buys = affordableRecommendations.stream()
+            List<Map<String, Object>> buys = affordable.stream()
                     .filter(r -> "Buy".equalsIgnoreCase((String) r.get("recommendation")))
                     .sorted(Comparator.comparingDouble(r -> ((Number) r.get("latestPrice")).doubleValue()))
                     .collect(Collectors.toList());
 
-            List<Map<String, Object>> selectedStocks = new ArrayList<>();
-
-            remainingBudget = buyStocksWithinBudget(strongBuys, remainingBudget, selectedStocks);
-
-            if (remainingBudget > 0) {
-                remainingBudget = buyStocksWithinBudget(buys, remainingBudget, selectedStocks);
+            List<Map<String, Object>> selected = new ArrayList<>();
+            remaining = buyStocksWithinBudget(strongBuys, remaining, selected);
+            if (remaining > 0) {
+                buyStocksWithinBudget(buys, remaining, selected);
             }
 
-            return ResponseEntity.ok(selectedStocks);
-        } else {
-            return ResponseEntity.ok("Sorry, I can only help with stock recommendations currently.");
+            return ResponseEntity.ok(selected);
         }
+
+        return ResponseEntity.ok("Sorry, I can only help with stock recommendations currently.");
     }
 
-    private double buyStocksWithinBudget(List<Map<String, Object>> stocks, double budget, List<Map<String, Object>> boughtStocks) {
+    private double buyStocksWithinBudget(List<Map<String, Object>> stocks, double budget, List<Map<String, Object>> bought) {
         Iterator<Map<String, Object>> it = stocks.iterator();
         while (it.hasNext()) {
             Map<String, Object> stock = it.next();
             double price = ((Number) stock.get("latestPrice")).doubleValue();
 
             if (price <= budget) {
-                boughtStocks.add(stock);
+                bought.add(stock);
                 budget -= price;
                 it.remove();
             } else {
@@ -229,4 +278,7 @@ public class StockService {
         return budget;
     }
 
+    private double round(double value) {
+        return Math.round(value * 100.0) / 100.0;
+    }
 }

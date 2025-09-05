@@ -21,9 +21,8 @@ public class Stock {
     @Column(name = "symbol")
     private String symbol;
     private double basePrice;
-    private String Industry;
+    private String industry;
     //private double quantity;
-
     @Transient
     private String colorTag;
 
@@ -42,11 +41,12 @@ public class Stock {
             String Name,
             String symbol,
             double basePrice,
-            String Industry) {
+            String industry, String colorTag) {
         this.stockId = stockId;
         this.Name = Name;
         this.symbol = symbol;
-        this.Industry = Industry;
+        this.industry = industry;
+        this.colorTag = colorTag;
     }
 
     public int getstockId() {
@@ -82,11 +82,11 @@ public class Stock {
     }
 
     public String getIndustry() {
-        return Industry;
+        return industry;
     }
 
-    public void setIndustry(String Industry) {
-        this.Industry = Industry;
+    public void setIndustry(String industry) {
+        this.industry = industry;
     }
 
     // public double getQuantity() {
