@@ -1,6 +1,7 @@
 package com.ofss.dto;
 
 public class TradeRequest {
+
     private String email;
     private String symbol;
     private int quantity;
