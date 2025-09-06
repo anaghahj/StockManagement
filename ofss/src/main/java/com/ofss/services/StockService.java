@@ -19,6 +19,9 @@ import com.ofss.model.StockHistory;
 import com.ofss.repositories.StockHistoryRepository;
 import com.ofss.repositories.StockRepository;
 
+import jakarta.transaction.Transactional;
+
+@Transactional
 @Service
 public class StockService {
 
@@ -65,7 +68,7 @@ public class StockService {
     }
 
     // 4. Get stocks sorted by latest price
-    public List<StockDTO> getAllStocksSortedByLatestPrice(String order) {
+    public ResponseEntity<Object> getAllStocksSortedByLatestPrice(String order) {
         List<Stock> stocks = sr.findAll();
         List<StockDTO> enrichedStocks = new ArrayList<>();
 
@@ -103,7 +106,7 @@ public class StockService {
                     : Double.compare(priceA, priceB);
         });
 
-        return enrichedStocks;
+        return ResponseEntity.ok(enrichedStocks);
     }
 
     // 5. Find stocks by industry

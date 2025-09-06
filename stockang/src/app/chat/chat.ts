@@ -1,13 +1,6 @@
 import { Component, EventEmitter, Output } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-
-interface Stock {
-  symbol: string;
-  name: string;
-  latestPrice: number;
-  recommendation?: string; // Used as category
-  category: string;
-}
+import { Stock } from '../../model/stock.model';
 
 type Message = {
   from: 'user' | 'bot';

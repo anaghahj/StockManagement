@@ -56,6 +56,7 @@ public class StockController {
 
     @DeleteMapping("/stock/{symbol}")
     public ResponseEntity<Object> deleteBySymbol(@PathVariable String symbol) {
+        stockService.deleteAllHistoryForStock(symbol);
         return stockService.deleteBySymbol(symbol);
     }
 
@@ -66,6 +67,11 @@ public class StockController {
     @GetMapping("/stock/{symbol}/latest-price")
     public ResponseEntity<Object> getLatestPrice(@PathVariable String symbol) {
         return stockService.getLatestPrice(symbol);
+    }
+
+    @GetMapping("/stocks/sorted")
+    public ResponseEntity<Object> sorted(@RequestParam(defaultValue = "asc") String order) {
+        return stockService.getAllStocksSortedByLatestPrice(order);
     }
 
     @GetMapping("/stocks/smart-recommendations")
@@ -94,11 +100,6 @@ public class StockController {
         System.out.println("End date: " + enddate);
 
         return stockService.getAverageClosePrice(symbol, startdate, enddate);
-    }
-
-    @DeleteMapping("/stock/{symbol}/history")
-    public ResponseEntity<Object> deleteAllHistoryForStock(@PathVariable String symbol) {
-        return stockService.deleteAllHistoryForStock(symbol);
     }
 
     @GetMapping("/stocks/top-movers")

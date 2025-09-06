@@ -10,11 +10,19 @@ import { HistoryEntry, Stock } from '../../model/stock.model';
   styleUrls: ['./home.css'],
 })
 export class home implements OnInit {
-
   @ViewChild('chartSection') chartSection!: ElementRef;
 
-  allHistory: HistoryEntry[] = [];
-  stocks: Stock[] = [];
+  // Full and filtered stock lists
+  allStocks: Stock[] = [];
+  filteredStocks: Stock[] = [];
+
+  // Filters
+  industries: string[] = [];
+  searchTerm: string = '';
+  selectedIndustry: string = '';
+  sortOrder: 'asc' | 'desc' = 'desc';
+
+  // Selected stock & chart
   selectedStock: Stock | null = null;
   selectedRange: number = 30;
 
@@ -28,9 +36,7 @@ export class home implements OnInit {
     plugins: {
       legend: {
         display: true,
-        labels: {
-          color: '#fff'
-        }
+        labels: { color: '#fff' }
       }
     },
     scales: {
@@ -38,68 +44,102 @@ export class home implements OnInit {
       y: { ticks: { color: '#ccc' } }
     }
   };
+  priceOrder: 'high' | 'low' | '' = '';
+
 
   constructor(private http: HttpClient) { }
 
   ngOnInit(): void {
-    this.fetchStocksAndHistories();
+    this.fetchStocksWithHistory();
   }
 
-  fetchStocksAndHistories(): void {
-    this.http.get<{ symbol: string; Name: string; basePrice: number; Industry: string }[]>('http://localhost:8089/api/stocks')
-      .subscribe(stockList => {
-        const historyRequests = stockList.map(stock =>
-          this.http.get<HistoryEntry[]>(`http://localhost:8089/api/stock/${stock.symbol}/history`)
-        );
+  /**
+   * Fetch stocks + their history to support chart view and filtering
+   */
+  fetchStocksWithHistory(): void {
+    this.http.get<any[]>('http://localhost:8089/api/stocks').subscribe(stockList => {
+      const historyCalls = stockList.map(s =>
+        this.http.get<HistoryEntry[]>(`http://localhost:8089/api/stock/${s.symbol}/history`)
+      );
 
-        forkJoin(historyRequests).subscribe(historiesArray => {
-          this.stocks = stockList.map((stock, idx) => {
-            const history = historiesArray[idx].sort((a, b) =>
-              new Date(a.tradeDate).getTime() - new Date(b.tradeDate).getTime()
-            );
+      forkJoin(historyCalls).subscribe(histories => {
+        this.allStocks = stockList.map((s, i) => {
+          const h = histories[i].sort((a, b) =>
+            new Date(a.tradeDate).getTime() - new Date(b.tradeDate).getTime()
+          );
 
-            const currentPrice = history.length ? history[history.length - 1].closePrice : stock.basePrice;
-            const change = currentPrice - stock.basePrice;
-            const changePercent = stock.basePrice ? (change / stock.basePrice) * 100 : 0;
+          const cp = h[h.length - 1]?.closePrice ?? s.basePrice;
+          const ch = cp - s.basePrice;
+          const chp = s.basePrice ? (ch / s.basePrice) * 100 : 0;
 
-            return {
-              symbol: stock.symbol,
-              name: stock.Name,
-              basePrice: stock.basePrice,
-              currentPrice,
-              industry: stock.Industry,
-              history,
-              change,
-              changePercent
-            };
-          });
+          return {
+            symbol: s.symbol,
+            name: s.name || s.Name,
+            basePrice: s.basePrice,
+            currentPrice: cp,
+            change: ch,
+            changePercent: chp,
+            industry: s.industry || s.Industry,
+            history: h
+          };
         });
+
+        this.filteredStocks = [...this.allStocks];
+        this.industries = [...new Set(this.allStocks.map(s => s.industry))];
+      });
+    });
+  }
+
+  /**
+   * Filters stock list based on search, industry and sort order
+   */
+  applyFilters(): void {
+    this.filteredStocks = this.allStocks
+      .filter(stock => {
+        const searchMatch = !this.searchTerm ||
+          stock.name.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
+          stock.symbol.toLowerCase().includes(this.searchTerm.toLowerCase());
+
+        const industryMatch = !this.selectedIndustry || stock.industry === this.selectedIndustry;
+
+        return searchMatch && industryMatch;
+      })
+      .sort((a, b) => {
+        if (this.priceOrder === 'high') return b.currentPrice - a.currentPrice;
+        if (this.priceOrder === 'low') return a.currentPrice - b.currentPrice;
+        return 0;
       });
   }
 
   /**
-   * Call this when a user clicks on a stock or changes date range
+   * Change sorting (triggered via dropdown)
    */
-  fetchHistoryForChart(stock: Stock, days: number = this.selectedRange): void {
+  onSortChange(order: 'asc' | 'desc') {
+    this.sortOrder = order;
+    this.applyFilters(); // Reapply sorting
+  }
+
+  /**
+   * When user clicks a stock card
+   */
+  selectStock(stock: Stock): void {
     this.selectedStock = stock;
-    this.selectedRange = days;
+    this.renderChart();
+  }
 
-    const fullHistory = stock.history;
+  /**
+   * Render the line chart based on selected stock + date range
+   */
+  renderChart(days = this.selectedRange): void {
+    if (!this.selectedStock) return;
 
-    // Filter the last N days
-    const filteredHistory = fullHistory.slice(-days);
-
-    const labels = filteredHistory.map(entry =>
-      new Date(entry.tradeDate).toLocaleDateString()
-    );
-
-    const prices = filteredHistory.map(entry => entry.closePrice ?? 0);
+    const history = this.selectedStock.history.slice(-days);
 
     this.chartData = {
-      labels: labels,
+      labels: history.map(e => new Date(e.tradeDate).toLocaleDateString()),
       datasets: [{
-        label: `${stock.symbol} - Last ${days} Days`,
-        data: prices,
+        label: `${this.selectedStock.symbol} — Last ${days} days`,
+        data: history.map(e => e.closePrice),
         fill: false,
         borderColor: '#D65A31',
         backgroundColor: '#D65A31',
@@ -109,17 +149,16 @@ export class home implements OnInit {
       }]
     };
 
-    // Smooth scroll to chart section
     setTimeout(() => {
       this.chartSection?.nativeElement.scrollIntoView({ behavior: 'smooth' });
-    }, 0);
+    }, 100);
   }
 
   /**
-   * Handler for the range buttons
+   * Change date range (e.g. 7, 30, 90 days)
    */
-  setChartRange(days: number): void {
-    if (!this.selectedStock) return;
-    this.fetchHistoryForChart(this.selectedStock, days);
+  setRange(days: number): void {
+    this.selectedRange = days;
+    this.renderChart(days);
   }
 }
